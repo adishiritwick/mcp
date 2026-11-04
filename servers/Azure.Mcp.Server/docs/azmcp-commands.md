@@ -4666,6 +4666,7 @@ azmcp resiliency recoveryplan validateforoperation --service-group <service-grou
 # Configure recoveryplan resource inclusions, exclusions, removals, recovery groups, identities, and protection settings. At least one JSON array is required.
 # First inclusion requires matching protection type and settings. CustomRunbook requires failover and reprotect runbook resource IDs.
 # AzureSiteRecovery is supported for virtual machines and requires disk reprotect details. Existing configuration is preserved on sparse updates.
+# Only resource types supported by recoveryplans (the Recovery Orchestration default supported list) can be included; other types can still be excluded or removed.
 # ✅ Destructive | ✅ Idempotent | ❌ OpenWorld | ❌ ReadOnly | ❌ Secret | ❌ LocalRequired
 azmcp resiliency recoveryplan resource update --service-group <service-group> \
                                                 --recoveryplan <recoveryplan> \

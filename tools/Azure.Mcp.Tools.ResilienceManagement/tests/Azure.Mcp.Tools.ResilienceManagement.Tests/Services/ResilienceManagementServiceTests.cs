@@ -6,6 +6,7 @@ using System.ClientModel.Primitives;
 using System.Text.Json;
 using Azure.Core;
 using Azure.Mcp.Tools.ResilienceManagement.Commands;
+using Azure.Mcp.Tools.ResilienceManagement.Commands.Recovery.Plans;
 using Azure.Mcp.Tools.ResilienceManagement.Models;
 using Azure.Mcp.Tools.ResilienceManagement.Services;
 using Azure.ResourceManager.Models;
@@ -987,6 +988,63 @@ public sealed class ResilienceManagementServiceTests
         Assert.Equal("12345678-9012-3456-7890-123456789013", additionalGroup.GroupUniqueId);
         Assert.Equal(1, additionalGroup.OrderId);
         Assert.Equal("additional", additionalGroup.Description);
+    }
+
+    [Theory]
+    [InlineData("Microsoft.Network/virtualNetworks")]
+    [InlineData("Microsoft.Compute/disks")]
+    [InlineData("Microsoft.Web/sites")]
+    public void ValidateRecoveryResourceUpdate_RejectsInclusionOfUnsupportedResourceType(string resourceType)
+    {
+        RecoveryMembersData requested = CreateRecoveryResource(
+            ResourceInclusionState.Included,
+            ResourceProtectionSolutionType.CustomRunbook,
+            CreateCustomRunbookSetting());
+        RecoveryMembersData existing = CreateRecoveryResource(
+            azureResourceId: $"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/{resourceType}/res");
+
+        ArgumentException exception = Assert.Throws<ArgumentException>(
+            () => ResilienceManagementService.ValidateRecoveryResourceUpdate(requested, existing));
+
+        Assert.Contains("not supported by recoveryplans", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(resourceType, exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("Microsoft.Storage/storageAccounts/acct")]
+    [InlineData("Microsoft.Network/loadBalancers/lb")]
+    [InlineData("microsoft.network/LOADBALANCERS/lb")]
+    [InlineData("Microsoft.Sql/servers/srv/databases/db")]
+    [InlineData("Microsoft.NetApp/netAppAccounts/a/capacityPools/p/volumes/v")]
+    public void ValidateRecoveryResourceUpdate_AllowsInclusionOfSupportedResourceType(string resourcePath)
+    {
+        RecoveryMembersData requested = CreateRecoveryResource(
+            ResourceInclusionState.Included,
+            ResourceProtectionSolutionType.CustomRunbook,
+            CreateCustomRunbookSetting());
+        RecoveryMembersData existing = CreateRecoveryResource(
+            azureResourceId: $"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/{resourcePath}");
+
+        ResilienceManagementService.ValidateRecoveryResourceUpdate(requested, existing);
+    }
+
+    [Fact]
+    public void ValidateRecoveryResourceUpdate_AllowsExcludingUnsupportedResourceType()
+    {
+        RecoveryMembersData requested = CreateRecoveryResource(ResourceInclusionState.Excluded);
+        RecoveryMembersData existing = CreateRecoveryResource(
+            ResourceInclusionState.Included,
+            azureResourceId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet");
+
+        ResilienceManagementService.ValidateRecoveryResourceUpdate(requested, existing);
+    }
+
+    [Fact]
+    public void RecoveryPlanSupportedResourceTypes_MatchesRecoveryOrchestrationDefaultList()
+    {
+        Assert.Equal(41, RecoveryPlanSupportedResourceTypes.All.Count);
+        Assert.True(RecoveryPlanSupportedResourceTypes.IsSupported(new ResourceType("Microsoft.Compute/virtualMachines")));
+        Assert.False(RecoveryPlanSupportedResourceTypes.IsSupported(new ResourceType("Microsoft.Automation/automationAccounts/runbooks")));
     }
 
     [Fact]

@@ -5,6 +5,7 @@ using System.ClientModel.Primitives;
 using System.Text.Json;
 using Azure.Core;
 using Azure.Mcp.Core.Services.Azure;
+using Azure.Mcp.Tools.ResilienceManagement.Commands.Recovery.Plans;
 using Azure.Mcp.Tools.ResilienceManagement.Models;
 using Azure.ResourceManager;
 using Azure.ResourceManager.Models;
@@ -1226,6 +1227,11 @@ public sealed partial class ResilienceManagementService(IAzureService azureServi
         if (effectiveInclusionState != ResourceInclusionState.Included)
         {
             return;
+        }
+
+        if (existing.ResourceId is ResourceIdentifier azureResourceId && !RecoveryPlanSupportedResourceTypes.IsSupported(azureResourceId.ResourceType))
+        {
+            throw new ArgumentException($"Recovery resource '{requested.RecoveryResourceUniqueId}' ({azureResourceId}) cannot be included because resource type '{azureResourceId.ResourceType}' is not supported by recoveryplans. Exclude it, or remove it from the service group.");
         }
 
         ResourceProtectionSolutionType? effectiveSolutionType = IsNullOrNone(requested.SelectedProtectionSolutionType)

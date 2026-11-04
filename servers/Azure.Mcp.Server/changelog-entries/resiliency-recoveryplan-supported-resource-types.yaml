@@ -1,0 +1,3 @@
+changes:
+  - section: Other Changes
+    description: "The resiliency recoveryplan resource update tool now rejects including a recovery resource whose Azure resource type is not supported by recoveryplans (the Recovery Orchestration default supported list), before calling the service. Excluding or removing such resources is still allowed."
